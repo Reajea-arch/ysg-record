@@ -185,6 +185,7 @@
     /* ---------------- 常量与元素 ---------------- */
     const PASSWORD = '666';
     const TABLE = 'customers';
+    const BUILD_VERSION = '2026-11-26-timeout-guard';
 
     const $ = (id) => document.getElementById(id);
     const viewMode = $('viewMode');
@@ -572,9 +573,49 @@
     $('errorClose').addEventListener('click', hideError);
 
     /* ---------------- 保存 / 更新记录 ---------------- */
+    const REQUEST_TIMEOUT = 15000; // 15 秒无响应即判定超时
+
     function setSaving(saving) {
       saveBtn.disabled = saving;
       saveBtn.textContent = saving ? '保存中…' : (editingId ? '保存修改' : '保存记录');
+    }
+
+    class TimeoutError extends Error {
+      constructor(ms) {
+        super('请求超时（' + Math.round(ms / 1000) + ' 秒）');
+        this.name = 'TimeoutError';
+      }
+    }
+
+    // 给 Supabase 请求加超时：AbortController 真正中断请求，Promise.race 兜底防止 promise 永不 settle
+    async function withTimeout(buildRequest, ms = REQUEST_TIMEOUT) {
+      const controller = new AbortController();
+      let timer = null;
+
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new TimeoutError(ms));
+        }, ms);
+      });
+
+      try {
+        return await Promise.race([buildRequest(controller.signal), timeout]);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    function describeSaveError(err) {
+      if (err && (err instanceof TimeoutError || err.name === 'TimeoutError' || err.name === 'AbortError')) {
+        return '请求超时（' + (REQUEST_TIMEOUT / 1000) + ' 秒无响应），请检查手机网络后重试。';
+      }
+      const parts = [];
+      if (err && err.message) parts.push('message: ' + err.message);
+      if (err && err.code) parts.push('code: ' + err.code);
+      if (err && err.details) parts.push('details: ' + err.details);
+      if (err && err.hint) parts.push('hint: ' + err.hint);
+      return parts.length ? parts.join('\n') : String(err);
     }
 
     recordForm.addEventListener('submit', async (e) => {
@@ -611,9 +652,13 @@
 
       setSaving(true);
       try {
-        const { data, error } = isEditing
-          ? await db.from(TABLE).update(payload).eq('id', editingId).select('id')
-          : await db.from(TABLE).insert([payload]);
+        const { data, error } = await withTimeout((signal) => {
+          const query = isEditing
+            ? db.from(TABLE).update(payload).eq('id', editingId).select('id')
+            : db.from(TABLE).insert([payload]);
+          // supabase-js v2 支持 abortSignal；旧版本没有该方法时退化为仅靠 Promise.race
+          return typeof query.abortSignal === 'function' ? query.abortSignal(signal) : query;
+        });
 
         if (error) throw error;
         // update 被 RLS 拦下时 PostgREST 可能只返回空数组而不报错，这里显式提示
@@ -627,13 +672,19 @@
         showViewMode();
         await loadCustomers();
       } catch (err) {
-        showError((isEditing ? '保存修改失败：' : '保存失败：') + errorMessage(err) + '（请检查网络、表结构与 RLS 策略）');
+        const title = isEditing ? '保存修改失败' : '保存失败';
+        const detail = describeSaveError(err);
+
+        // 失败时保持编辑态和已填内容，只恢复按钮并给出可读提示
+        showError(title + '：' + detail.replace(/\n/g, '；'));
+        alert(title + '\n\n' + detail + '\n\n表单内容已保留，可修改后重试。');
       } finally {
         setSaving(false);
       }
     });
 
     /* ---------------- 初始化 ---------------- */
+    console.info('[养生馆客户记录] 版本 ' + BUILD_VERSION + '，请求超时 ' + (REQUEST_TIMEOUT / 1000) + 's');
     if (configProblem) {
       renderNotice('配置未就绪，暂时无法读取客户数据。');
       showError(configProblem);
