@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4A7C59" />
+  <title>养生馆客户记录</title>
+
+  <!-- 本地 Tailwind CSS（由 tailwind.config.js + src/input.css 构建生成，不依赖外网 CDN） -->
+  <link rel="stylesheet" href="assets/tailwind.css?v=3" />
+</head>
+
+<body class="font-sans text-gray-800 antialiased">
+
+  <!-- 顶部标题栏 -->
+  <header class="sticky top-0 z-20 border-b border-herbal-100 bg-paper/90 backdrop-blur">
+    <div class="mx-auto flex h-14 max-w-md items-center justify-between px-4">
+      <div class="flex items-center gap-2">
+        <!-- 叶子图标 -->
+        <svg class="h-6 w-6 text-herbal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 4c0 8.5-4.5 13-13 13H4c0-8 4.8-13 13-13h3Z" />
+          <path d="M4 20c2-6.5 6-10 11-12" />
+        </svg>
+        <h1 class="text-[17px] font-semibold tracking-wide text-herbal-700">养生馆客户记录</h1>
+      </div>
+
+      <!-- 隐藏入口：右上角小齿轮 -->
+      <button id="lockBtn" type="button" aria-label="录入模式"
+        class="grid h-9 w-9 place-items-center rounded-full text-herbal-500/45 transition active:scale-95 active:bg-herbal-50">
+        <svg class="h-[18px] w-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-md px-4 pb-16 pt-5">
+
+    <!-- 错误提示条（请求失败时可见） -->
+    <div id="errorBanner" class="mb-4 hidden items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-600">
+      <svg class="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.8L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+      </svg>
+      <p class="flex-1 leading-relaxed"><span id="errorText"></span></p>
+      <button id="errorClose" type="button" aria-label="关闭提示" class="shrink-0 text-red-400 active:scale-90">✕</button>
+    </div>
+
+    <!-- ============ 查看模式（默认） ============ -->
+    <section id="viewMode" class="fade-in">
+
+      <!-- 本月总收入 -->
+      <div class="mb-4 flex items-center justify-between rounded-2xl border border-herbal-100 bg-white px-4 py-3.5 shadow-soft">
+        <div class="min-w-0">
+          <p class="text-xs text-herbal-500/80">本月总收入</p>
+          <p id="monthIncome" class="mt-1 text-2xl font-semibold tracking-tight text-wood-600">¥0</p>
+        </div>
+        <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-wood-100 text-wood-600">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 8l3.5 4 3.5-4" />
+            <path d="M12 12v4.5" />
+            <path d="M9.5 13h5" />
+            <path d="M9.5 15h5" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="mb-3 flex items-end justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-herbal-700">客户档案</h2>
+          <p class="mt-0.5 text-xs text-herbal-500/70">共 <span id="clientCount">0</span> 位客人</p>
+        </div>
+        <span class="rounded-full bg-wood-100 px-2.5 py-1 text-[11px] text-wood-600">只读查看</span>
+      </div>
+
+      <!-- 客人列表由 JS 渲染 -->
+      <div id="clientList" class="space-y-3"></div>
+
+      <p class="mt-8 text-center text-[11px] tracking-[0.2em] text-herbal-500/50">草木养身 · 以客为亲</p>
+    </section>
+
+    <!-- ============ 录入模式（隐藏） ============ -->
+    <section id="entryMode" class="hidden">
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <h2 id="entryTitle" class="text-base font-semibold text-herbal-700">录入模式</h2>
+          <p id="entrySubtitle" class="mt-0.5 text-xs text-herbal-500/70">为客人建立一份新档案</p>
+        </div>
+        <button id="exitBtn" type="button"
+          class="rounded-full border border-herbal-200 bg-white px-3 py-1.5 text-xs text-herbal-600 active:scale-95">
+          退出
+        </button>
+      </div>
+
+      <form id="recordForm" class="space-y-4 rounded-2xl border border-herbal-100 bg-white p-5 shadow-soft">
+
+        <div>
+          <label for="name" class="mb-1.5 block text-sm font-medium text-gray-700">
+            姓名 <span class="text-red-400">*</span>
+          </label>
+          <input id="name" name="name" type="text" required placeholder="请输入客人姓名" class="field" />
+        </div>
+
+        <div>
+          <label for="phone" class="mb-1.5 block text-sm font-medium text-gray-700">
+            电话 <span class="text-red-400">*</span>
+          </label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" required placeholder="请输入联系电话" class="field" />
+        </div>
+
+        <div>
+          <label for="address" class="mb-1.5 block text-sm font-medium text-gray-700">
+            地址 <span class="text-red-400">*</span>
+          </label>
+          <input id="address" name="address" type="text" required placeholder="请输入详细地址" class="field" />
+        </div>
+
+        <div>
+          <label for="plan" class="mb-1.5 block text-sm font-medium text-gray-700">
+            治疗方案 <span class="text-xs font-normal text-gray-400">（选填）</span>
+          </label>
+          <textarea id="plan" name="plan" rows="3" placeholder="例如：艾灸调理 + 肩颈推拿，每周两次" class="field resize-none"></textarea>
+        </div>
+
+        <div>
+          <label for="price" class="mb-1.5 block text-sm font-medium text-gray-700">
+            价格（元） <span class="text-xs font-normal text-gray-400">（选填）</span>
+          </label>
+          <input id="price" name="price" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" class="field" />
+        </div>
+
+        <button id="saveBtn" type="submit"
+          class="mt-2 w-full rounded-xl bg-herbal-500 py-3.5 text-[15px] font-medium text-white shadow-soft transition active:scale-[0.99] active:bg-herbal-600 disabled:cursor-not-allowed disabled:opacity-60">
+          保存记录
+        </button>
+      </form>
+    </section>
+  </main>
+
+  <!-- ============ 口令弹窗 ============ -->
+  <div id="passModal" class="fixed inset-0 z-30 hidden items-center justify-center bg-herbal-700/30 px-6 backdrop-blur-sm">
+    <div class="modal-in w-full max-w-xs rounded-2xl bg-white p-6 shadow-soft">
+      <div class="mb-4 flex flex-col items-center text-center">
+        <div class="mb-3 grid h-12 w-12 place-items-center rounded-full bg-herbal-50 text-herbal-500">
+          <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="11" rx="2.5" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
+          </svg>
+        </div>
+        <h3 class="text-base font-semibold text-gray-800">请输入口令</h3>
+        <p class="mt-1 text-xs text-gray-400">口令正确后进入录入模式</p>
+      </div>
+
+      <input id="passInput" type="password" inputmode="numeric" maxlength="6" autocomplete="off"
+        placeholder="请输入口令" class="field text-center tracking-[0.4em]" />
+
+      <p id="passError" class="mt-2 hidden text-center text-xs text-red-400">口令不对，请重试</p>
+
+      <div class="mt-5 flex gap-3">
+        <button id="passCancel" type="button"
+          class="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm text-gray-500 active:scale-95">
+          取消
+        </button>
+        <button id="passConfirm" type="button"
+          class="flex-1 rounded-xl bg-herbal-500 py-2.5 text-sm font-medium text-white active:scale-95 active:bg-herbal-600">
+          确认
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 轻提示 -->
+  <div id="toast" class="pointer-events-none fixed left-1/2 top-20 z-40 hidden -translate-x-1/2 rounded-full bg-herbal-600 px-5 py-2 text-sm text-white shadow-soft"></div>
+
+  <!-- Supabase JS 客户端（本地文件，固定 v2.119.2，不依赖外网 CDN） -->
+  <script src="vendor/supabase.js"></script>
+  <!-- 配置（随仓库部署，publishable key 公开，安全靠 Supabase RLS 兜底）：带版本号便于更新缓存，改完 config.js 请强刷新 Ctrl+F5 -->
+  <script src="config.js?v=2" onerror="window.__CONFIG_LOAD_ERROR__ = true"></script>
+
+  <script>
+    /* ---------------- 常量与元素 ---------------- */
+    const PASSWORD = '666';
+    const TABLE = 'customers';
+
+    const $ = (id) => document.getElementById(id);
+    const viewMode = $('viewMode');
+    const entryMode = $('entryMode');
+    const entryTitle = $('entryTitle');
+    const entrySubtitle = $('entrySubtitle');
+    const lockBtn = $('lockBtn');
+    const exitBtn = $('exitBtn');
+    const recordForm = $('recordForm');
+    const saveBtn = $('saveBtn');
+    const passModal = $('passModal');
+    const passInput = $('passInput');
+    const passError = $('passError');
+    const clientList = $('clientList');
+    const clientCount = $('clientCount');
+    const errorBanner = $('errorBanner');
+    const errorText = $('errorText');
+    const toast = $('toast');
+
+    // 编辑 / 口令状态
+    let editingId = null;          // 非空表示当前表单处于编辑态
+    let sessionUnlocked = false;   // 本次会话是否已通过口令
+    let pendingAction = null;      // 口令通过后要执行的动作
+    let customerCache = [];        // 当前列表数据，供编辑时定位记录
+
+    /* ---------------- Supabase 初始化与配置诊断 ---------------- */
+    const rawConfig = window.SUPABASE_CONFIG;
+    const configLoadFailed = window.__CONFIG_LOAD_ERROR__ === true;
+
+    // 兼容用户误填 https://xxx.supabase.co/rest/v1/ 的情况
+    function normalizeSupabaseUrl(value) {
+      return String(value == null ? '' : value)
+        .trim()
+        .replace(/\/rest\/v1\/?$/i, '')
+        .replace(/\/+$/, '');
+    }
+
+    const configUrl = rawConfig && typeof rawConfig === 'object'
+      ? normalizeSupabaseUrl(rawConfig.url)
+      : '';
+    const configKey = rawConfig && typeof rawConfig === 'object'
+      ? String(rawConfig.key == null ? '' : rawConfig.key).trim()
+      : '';
+
+    let configProblem = '';
+
+    if (!rawConfig) {
+      // 区分两种：文件没请求到（404 / 文件名不对） vs 文件加载了但没赋值
+      configProblem = configLoadFailed
+        ? 'config.js 没有加载成功（文件找不到或路径不对）。请确认它和 index.html 在同一个文件夹，文件名必须是 config.js 而不是 config.js.txt，并确认打开的是这个文件夹里的 index.html。'
+        : '页面没有读到 window.SUPABASE_CONFIG。请确认 config.js 与 index.html 在同一个文件夹，文件内容是 window.SUPABASE_CONFIG = { url: ..., key: ... };，并检查引号是否成对、语句结尾是否有分号。';
+    } else if (!configUrl || !configKey) {
+      const missing = [!configUrl ? 'url' : '', !configKey ? 'key' : ''].filter(Boolean).join(' 和 ');
+      configProblem = 'config.js 中缺少 ' + missing + '，请补全后保存。';
+    } else if (/^YOUR_/.test(configUrl) || /^YOUR_/.test(configKey)) {
+      configProblem = 'config.js 里仍然是占位符 YOUR_PROJECT_URL / YOUR_PUBLISHABLE_KEY。请把真实值填到 config.js（不是 config.example.js）里，保存并强刷新（Ctrl+F5）。';
+    } else if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(configUrl)) {
+      configProblem = 'config.js 里的 url 格式不正确：应形如 https://<项目ref>.supabase.co，不要带 /rest/v1/ 或结尾斜杠。当前读到的是 ' + configUrl;
+    }
+
+    let db = null;
+    if (!configProblem) {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        try {
+          db = window.supabase.createClient(configUrl, configKey);
+        } catch (err) {
+          configProblem = '初始化 Supabase 客户端失败：' + errorMessage(err);
+        }
+      } else {
+        configProblem = 'config.js 已读取成功，但 Supabase SDK（CDN）没有加载。请检查网络或代理后刷新页面重试。';
+      }
+    }
+
+    /* ---------------- 通用工具与提示 ---------------- */
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[ch]);
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
+    function errorMessage(err) {
+      if (!err) return '未知错误';
+      return err.message || err.error_description || String(err);
+    }
+
+    function showError(message) {
+      errorText.textContent = message;
+      errorBanner.classList.remove('hidden');
+      errorBanner.classList.add('flex');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function hideError() {
+      errorBanner.classList.add('hidden');
+      errorBanner.classList.remove('flex');
+    }
+
+    let toastTimer = null;
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add('hidden'), 2200);
+    }
+
+    /* ---------------- 列表渲染 ---------------- */
+    function renderLoading() {
+      clientCount.textContent = '…';
+      clientList.innerHTML = `
+        <div class="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-herbal-200 bg-white/60 py-10 text-sm text-herbal-500">
+          <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity="0.25" stroke-width="3" />
+            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          </svg>
+          正在加载客户数据…
+        </div>
+      `;
+    }
+
+    function renderNotice(text) {
+      clientCount.textContent = '—';
+      clientList.innerHTML = `
+        <div class="rounded-2xl border border-dashed border-herbal-200 bg-white/60 px-4 py-10 text-center text-sm leading-relaxed text-herbal-500/80">
+          ${escapeHtml(text)}
+        </div>
+      `;
+    }
+
+    /* ---------------- 本月总收入 ---------------- */
+    function calcMonthIncome(list, now = new Date()) {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+
+      const sum = list.reduce((acc, c) => {
+        if (!c.created_at) return acc;
+
+        const created = new Date(c.created_at);
+        if (Number.isNaN(created.getTime())) return acc;
+
+        // 取本地时间的年月，按 UTC+8 的自然月统计（而不是 UTC 月份）
+        if (created.getFullYear() !== year || created.getMonth() !== month) return acc;
+
+        const price = Number(c.price);
+        return acc + (Number.isFinite(price) ? price : 0);
+      }, 0);
+
+      // 避免浮点误差（如 0.1 + 0.2）
+      return Math.round(sum * 100) / 100;
+    }
+
+    function renderMonthIncome(list) {
+      const total = calcMonthIncome(list);
+      $('monthIncome').textContent = '¥' + total.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    }
+
+    function renderClients(list) {
+      customerCache = list;
+      clientCount.textContent = list.length;
+      renderMonthIncome(list);
+
+      if (!list.length) {
+        clientList.innerHTML = `
+          <div class="rounded-2xl border border-dashed border-herbal-200 bg-white/60 px-4 py-10 text-center">
+            <p class="text-sm text-herbal-600">还没有客户记录</p>
+            <p class="mt-1 text-xs text-herbal-500/70">点击右上角小齿轮 → 输入口令 → 录入第一位客人</p>
+          </div>
+        `;
+        return;
+      }
+
+      clientList.innerHTML = list.map((c) => {
+        const price = c.price === null || c.price === undefined || c.price === ''
+          ? null
+          : Number(c.price);
+        const hasPrice = price !== null && !Number.isNaN(price);
+
+        return `
+          <article class="flex gap-3 rounded-2xl border border-herbal-100 bg-white p-4 shadow-soft">
+            <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-herbal-100 font-semibold text-herbal-700">
+              ${escapeHtml((c.name || '?').slice(0, 1))}
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-baseline justify-between gap-3">
+                <h3 class="truncate font-semibold text-gray-800">${escapeHtml(c.name || '未命名')}</h3>
+                ${hasPrice ? `<span class="shrink-0 text-sm font-semibold text-wood-600">¥${escapeHtml(price)}</span>` : ''}
+              </div>
+              <p class="mt-1 text-sm text-gray-500">电话 ${escapeHtml(c.phone || '—')}</p>
+              <p class="text-sm break-words text-gray-500">${escapeHtml(c.address || '—')}</p>
+              ${c.plan ? `<p class="mt-2 rounded-lg bg-herbal-50 px-2.5 py-1.5 text-sm leading-relaxed text-herbal-600">方案：${escapeHtml(c.plan)}</p>` : ''}
+              <div class="mt-2 flex items-center justify-between gap-2">
+                <p class="text-[11px] text-gray-400">记录于 ${escapeHtml(formatDate(c.created_at))}</p>
+                <button type="button" data-edit-id="${escapeHtml(c.id)}"
+                  class="inline-flex shrink-0 items-center gap-1 rounded-full border border-herbal-200 bg-white px-2.5 py-1 text-xs text-herbal-600 active:scale-95">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                  编辑
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderLoadError(err) {
+      clientCount.textContent = '—';
+      clientList.innerHTML = `
+        <div class="rounded-2xl border border-red-100 bg-red-50/70 px-4 py-6 text-center">
+          <p class="text-sm font-medium text-red-500">客户列表加载失败</p>
+          <p class="mt-1 break-all text-xs leading-relaxed text-red-400">${escapeHtml(errorMessage(err))}</p>
+          <button id="retryBtn" type="button"
+            class="mt-4 rounded-full bg-white px-4 py-1.5 text-xs text-herbal-600 shadow-soft active:scale-95">
+            重试
+          </button>
+        </div>
+      `;
+      const retryBtn = $('retryBtn');
+      if (retryBtn) retryBtn.addEventListener('click', loadCustomers);
+    }
+
+    /* ---------------- 读取数据 ---------------- */
+    let isLoading = false;
+
+    async function loadCustomers() {
+      if (!db || isLoading) return;
+      isLoading = true;
+      renderLoading();
+
+      try {
+        const { data, error } = await db
+          .from(TABLE)
+          .select('id, name, phone, address, plan, price, created_at')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        hideError();
+        renderClients(data || []);
+      } catch (err) {
+        renderLoadError(err);
+        showError('读取客户列表失败：' + errorMessage(err));
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    /* ---------------- 模式切换 ---------------- */
+    function showViewMode() {
+      entryMode.classList.add('hidden');
+      viewMode.classList.remove('hidden');
+      viewMode.classList.add('fade-in');
+      lockBtn.classList.remove('hidden');
+      window.scrollTo({ top: 0 });
+    }
+
+    function showEntryMode() {
+      viewMode.classList.add('hidden');
+      entryMode.classList.remove('hidden');
+      entryMode.classList.add('fade-in');
+      lockBtn.classList.add('hidden'); // 录入模式下隐藏口令入口
+      window.scrollTo({ top: 0 });
+    }
+
+    /* ---------------- 录入 / 编辑 表单状态 ---------------- */
+    function setFormMode(mode) {
+      const editing = mode === 'edit';
+      entryTitle.textContent = editing ? '编辑客户' : '录入模式';
+      entrySubtitle.textContent = editing ? '修改后点击「保存修改」' : '为客人建立一份新档案';
+      exitBtn.textContent = editing ? '取消' : '退出';
+      saveBtn.textContent = editing ? '保存修改' : '保存记录';
+    }
+
+    function fillForm(c) {
+      $('name').value = c.name == null ? '' : c.name;
+      $('phone').value = c.phone == null ? '' : c.phone;
+      $('address').value = c.address == null ? '' : c.address;
+      $('plan').value = c.plan == null ? '' : c.plan;
+      $('price').value = c.price == null ? '' : c.price;
+    }
+
+    function resetFormState() {
+      editingId = null;
+      recordForm.reset();
+      setFormMode('create');
+    }
+
+    function startCreate() {
+      resetFormState();
+      hideError();
+      showEntryMode();
+      setTimeout(() => $('name').focus(), 80);
+    }
+
+    function startEdit(c) {
+      editingId = c.id;
+      fillForm(c);
+      setFormMode('edit');
+      hideError();
+      showEntryMode();
+      setTimeout(() => $('name').focus(), 80);
+    }
+
+    // 写操作统一走这里：本次会话已通过口令则直接执行，否则先弹口令
+    function requestWrite(action) {
+      if (sessionUnlocked) {
+        action();
+        return;
+      }
+      pendingAction = action;
+      openPassModal();
+    }
+
+    /* ---------------- 口令弹窗 ---------------- */
+    function openPassModal() {
+      passModal.classList.remove('hidden');
+      passModal.classList.add('flex');
+      passInput.value = '';
+      passError.classList.add('hidden');
+      setTimeout(() => passInput.focus(), 60);
+    }
+
+    function closePassModal() {
+      passModal.classList.add('hidden');
+      passModal.classList.remove('flex');
+      pendingAction = null;
+    }
+
+    function confirmPass() {
+      if (passInput.value.trim() === PASSWORD) {
+        const action = pendingAction;
+        sessionUnlocked = true;
+        closePassModal();
+        if (action) action();
+        return;
+      }
+      passError.classList.remove('hidden');
+      passInput.value = '';
+      passInput.classList.remove('shake');
+      void passInput.offsetWidth; // 重排以重新触发动画
+      passInput.classList.add('shake');
+      passInput.focus();
+    }
+
+    /* ---------------- 事件绑定 ---------------- */
+    lockBtn.addEventListener('click', () => requestWrite(startCreate));
+
+    // 列表事件委托：卡片上的「编辑」按钮
+    clientList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-edit-id]');
+      if (!btn) return;
+
+      const id = btn.getAttribute('data-edit-id');
+      const record = customerCache.find((c) => String(c.id) === id);
+      if (!record) {
+        showError('没有找到这条记录，请刷新页面后重试。');
+        return;
+      }
+      requestWrite(() => startEdit(record));
+    });
+
+    $('passCancel').addEventListener('click', closePassModal);
+    $('passConfirm').addEventListener('click', confirmPass);
+    passInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') confirmPass();
+      if (e.key === 'Escape') closePassModal();
+    });
+    passModal.addEventListener('click', (e) => {
+      if (e.target === passModal) closePassModal();
+    });
+
+    exitBtn.addEventListener('click', () => {
+      resetFormState();
+      showViewMode();
+    });
+    $('errorClose').addEventListener('click', hideError);
+
+    /* ---------------- 保存 / 更新记录 ---------------- */
+    function setSaving(saving) {
+      saveBtn.disabled = saving;
+      saveBtn.textContent = saving ? '保存中…' : (editingId ? '保存修改' : '保存记录');
+    }
+
+    recordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!db) {
+        showError('配置未就绪，无法保存记录。请先按页面顶部提示修好 config.js，然后刷新页面。');
+        return;
+      }
+
+      const name = $('name').value.trim();
+      const phone = $('phone').value.trim();
+      const address = $('address').value.trim();
+      const plan = $('plan').value.trim();
+      const priceRaw = $('price').value.trim();
+
+      if (!name || !phone || !address) {
+        showError('姓名、电话、地址为必填项，请补全后再保存。');
+        return;
+      }
+
+      let price = priceRaw === '' ? null : Number(priceRaw);
+      if (Number.isNaN(price)) price = null;
+
+      const payload = {
+        name: name,
+        phone: phone,
+        address: address,
+        plan: plan || null,
+        price: price
+      };
+
+      const isEditing = editingId !== null && editingId !== undefined;
+
+      setSaving(true);
+      try {
+        const { data, error } = isEditing
+          ? await db.from(TABLE).update(payload).eq('id', editingId).select('id')
+          : await db.from(TABLE).insert([payload]);
+
+        if (error) throw error;
+        // update 被 RLS 拦下时 PostgREST 可能只返回空数组而不报错，这里显式提示
+        if (isEditing && (!data || !data.length)) {
+          throw new Error('没有更新到任何记录，可能被数据库权限（RLS）拒绝');
+        }
+
+        resetFormState();
+        hideError();
+        showToast(isEditing ? '修改成功' : '保存成功');
+        showViewMode();
+        await loadCustomers();
+      } catch (err) {
+        showError((isEditing ? '保存修改失败：' : '保存失败：') + errorMessage(err) + '（请检查网络、表结构与 RLS 策略）');
+      } finally {
+        setSaving(false);
+      }
+    });
+
+    /* ---------------- 初始化 ---------------- */
+    if (configProblem) {
+      renderNotice('配置未就绪，暂时无法读取客户数据。');
+      showError(configProblem);
+      console.warn('[养生馆客户记录] ' + configProblem);
+    } else {
+      loadCustomers();
+    }
+  </script>
+</body>
+</html>
