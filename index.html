@@ -6,84 +6,8 @@
   <meta name="theme-color" content="#4A7C59" />
   <title>养生馆客户记录</title>
 
-  <!-- Tailwind CSS（CDN） -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            herbal: {
-              50: '#F1F6F2',
-              100: '#E3EEE6',
-              200: '#C9DFCF',
-              300: '#A6C7B0',
-              500: '#4A7C59',
-              600: '#3D6A4B',
-              700: '#315640'
-            },
-            wood: {
-              50: '#FAF5EF',
-              100: '#F3E9DE',
-              300: '#D9BFA3',
-              500: '#B08968',
-              600: '#966F4F'
-            },
-            paper: '#F8F6F0'
-          },
-          fontFamily: {
-            sans: ['"PingFang SC"', '"Microsoft YaHei"', 'system-ui', '-apple-system', 'sans-serif']
-          },
-          boxShadow: {
-            soft: '0 8px 24px -12px rgba(74, 124, 89, 0.35)'
-          }
-        }
-      }
-    };
-  </script>
-
-  <style>
-    html { -webkit-text-size-adjust: 100%; }
-    body {
-      background-color: #F8F6F0;
-      background-image:
-        radial-gradient(circle at 15% 0%, rgba(166, 199, 176, 0.22), transparent 42%),
-        radial-gradient(circle at 90% 8%, rgba(217, 191, 163, 0.28), transparent 38%);
-      background-attachment: fixed;
-    }
-    .modal-in { animation: modalIn 0.22s ease-out both; }
-    @keyframes modalIn {
-      from { opacity: 0; transform: translateY(10px) scale(0.97); }
-      to   { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    .shake { animation: shake 0.3s ease-in-out; }
-    @keyframes shake {
-      0%, 100% { transform: translateX(0); }
-      25% { transform: translateX(-6px); }
-      75% { transform: translateX(6px); }
-    }
-    .fade-in { animation: fadeIn 0.25s ease-out both; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .field {
-      width: 100%;
-      border-radius: 0.75rem;
-      border: 1px solid #E3EEE6;
-      background-color: #FCFDFB;
-      padding: 0.75rem 0.9rem;
-      font-size: 0.95rem;
-      color: #2F3A33;
-      outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    .field::placeholder { color: #B4C2B8; }
-    .field:focus {
-      border-color: #A6C7B0;
-      box-shadow: 0 0 0 3px rgba(166, 199, 176, 0.3);
-    }
-  </style>
+  <!-- 本地 Tailwind CSS（由 tailwind.config.js + src/input.css 构建生成，不依赖外网 CDN） -->
+  <link rel="stylesheet" href="assets/tailwind.css?v=1" />
 </head>
 
 <body class="font-sans text-gray-800 antialiased">
@@ -234,9 +158,9 @@
   <!-- 轻提示 -->
   <div id="toast" class="pointer-events-none fixed left-1/2 top-20 z-40 hidden -translate-x-1/2 rounded-full bg-herbal-600 px-5 py-2 text-sm text-white shadow-soft"></div>
 
-  <!-- Supabase JS 客户端（CDN） -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- 本地配置（已被 .gitignore 忽略）：带版本号避免浏览器缓存旧配置，改完 config.js 请强刷新 Ctrl+F5 -->
+  <!-- Supabase JS 客户端（本地文件，固定 v2.119.2，不依赖外网 CDN） -->
+  <script src="vendor/supabase.js"></script>
+  <!-- 配置（随仓库部署，publishable key 公开，安全靠 Supabase RLS 兜底）：带版本号便于更新缓存，改完 config.js 请强刷新 Ctrl+F5 -->
   <script src="config.js?v=2" onerror="window.__CONFIG_LOAD_ERROR__ = true"></script>
 
   <script>
