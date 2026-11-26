@@ -1,0 +1,5 @@
+# 本地私有配置（包含 Supabase URL 与 key）
+# 说明：publishable key 本就是浏览器可见的公开密钥，安全靠 Supabase RLS 兜底，
+# 因此 config.js 不再忽略，随仓库一起部署（Vercel 路线 A）。
+.env
+.env.*
