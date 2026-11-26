@@ -7,7 +7,7 @@
   <title>养生馆客户记录</title>
 
   <!-- 本地 Tailwind CSS（由 tailwind.config.js + src/input.css 构建生成，不依赖外网 CDN） -->
-  <link rel="stylesheet" href="assets/tailwind.css?v=1" />
+  <link rel="stylesheet" href="assets/tailwind.css?v=3" />
 </head>
 
 <body class="font-sans text-gray-800 antialiased">
@@ -50,6 +50,24 @@
 
     <!-- ============ 查看模式（默认） ============ -->
     <section id="viewMode" class="fade-in">
+
+      <!-- 本月总收入 -->
+      <div class="mb-4 flex items-center justify-between rounded-2xl border border-herbal-100 bg-white px-4 py-3.5 shadow-soft">
+        <div class="min-w-0">
+          <p class="text-xs text-herbal-500/80">本月总收入</p>
+          <p id="monthIncome" class="mt-1 text-2xl font-semibold tracking-tight text-wood-600">¥0</p>
+        </div>
+        <div class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-wood-100 text-wood-600">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8.5 8l3.5 4 3.5-4" />
+            <path d="M12 12v4.5" />
+            <path d="M9.5 13h5" />
+            <path d="M9.5 15h5" />
+          </svg>
+        </div>
+      </div>
+
       <div class="mb-3 flex items-end justify-between">
         <div>
           <h2 class="text-base font-semibold text-herbal-700">客户档案</h2>
@@ -68,8 +86,8 @@
     <section id="entryMode" class="hidden">
       <div class="mb-4 flex items-center justify-between">
         <div>
-          <h2 class="text-base font-semibold text-herbal-700">录入模式</h2>
-          <p class="mt-0.5 text-xs text-herbal-500/70">为客人建立一份新档案</p>
+          <h2 id="entryTitle" class="text-base font-semibold text-herbal-700">录入模式</h2>
+          <p id="entrySubtitle" class="mt-0.5 text-xs text-herbal-500/70">为客人建立一份新档案</p>
         </div>
         <button id="exitBtn" type="button"
           class="rounded-full border border-herbal-200 bg-white px-3 py-1.5 text-xs text-herbal-600 active:scale-95">
@@ -171,6 +189,8 @@
     const $ = (id) => document.getElementById(id);
     const viewMode = $('viewMode');
     const entryMode = $('entryMode');
+    const entryTitle = $('entryTitle');
+    const entrySubtitle = $('entrySubtitle');
     const lockBtn = $('lockBtn');
     const exitBtn = $('exitBtn');
     const recordForm = $('recordForm');
@@ -183,6 +203,12 @@
     const errorBanner = $('errorBanner');
     const errorText = $('errorText');
     const toast = $('toast');
+
+    // 编辑 / 口令状态
+    let editingId = null;          // 非空表示当前表单处于编辑态
+    let sessionUnlocked = false;   // 本次会话是否已通过口令
+    let pendingAction = null;      // 口令通过后要执行的动作
+    let customerCache = [];        // 当前列表数据，供编辑时定位记录
 
     /* ---------------- Supabase 初始化与配置诊断 ---------------- */
     const rawConfig = window.SUPABASE_CONFIG;
@@ -295,8 +321,37 @@
       `;
     }
 
+    /* ---------------- 本月总收入 ---------------- */
+    function calcMonthIncome(list, now = new Date()) {
+      const year = now.getFullYear();
+      const month = now.getMonth();
+
+      const sum = list.reduce((acc, c) => {
+        if (!c.created_at) return acc;
+
+        const created = new Date(c.created_at);
+        if (Number.isNaN(created.getTime())) return acc;
+
+        // 取本地时间的年月，按 UTC+8 的自然月统计（而不是 UTC 月份）
+        if (created.getFullYear() !== year || created.getMonth() !== month) return acc;
+
+        const price = Number(c.price);
+        return acc + (Number.isFinite(price) ? price : 0);
+      }, 0);
+
+      // 避免浮点误差（如 0.1 + 0.2）
+      return Math.round(sum * 100) / 100;
+    }
+
+    function renderMonthIncome(list) {
+      const total = calcMonthIncome(list);
+      $('monthIncome').textContent = '¥' + total.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    }
+
     function renderClients(list) {
+      customerCache = list;
       clientCount.textContent = list.length;
+      renderMonthIncome(list);
 
       if (!list.length) {
         clientList.innerHTML = `
@@ -327,7 +382,17 @@
               <p class="mt-1 text-sm text-gray-500">电话 ${escapeHtml(c.phone || '—')}</p>
               <p class="text-sm break-words text-gray-500">${escapeHtml(c.address || '—')}</p>
               ${c.plan ? `<p class="mt-2 rounded-lg bg-herbal-50 px-2.5 py-1.5 text-sm leading-relaxed text-herbal-600">方案：${escapeHtml(c.plan)}</p>` : ''}
-              <p class="mt-2 text-[11px] text-gray-400">记录于 ${escapeHtml(formatDate(c.created_at))}</p>
+              <div class="mt-2 flex items-center justify-between gap-2">
+                <p class="text-[11px] text-gray-400">记录于 ${escapeHtml(formatDate(c.created_at))}</p>
+                <button type="button" data-edit-id="${escapeHtml(c.id)}"
+                  class="inline-flex shrink-0 items-center gap-1 rounded-full border border-herbal-200 bg-white px-2.5 py-1 text-xs text-herbal-600 active:scale-95">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
+                  编辑
+                </button>
+              </div>
             </div>
           </article>
         `;
@@ -393,6 +458,55 @@
       window.scrollTo({ top: 0 });
     }
 
+    /* ---------------- 录入 / 编辑 表单状态 ---------------- */
+    function setFormMode(mode) {
+      const editing = mode === 'edit';
+      entryTitle.textContent = editing ? '编辑客户' : '录入模式';
+      entrySubtitle.textContent = editing ? '修改后点击「保存修改」' : '为客人建立一份新档案';
+      exitBtn.textContent = editing ? '取消' : '退出';
+      saveBtn.textContent = editing ? '保存修改' : '保存记录';
+    }
+
+    function fillForm(c) {
+      $('name').value = c.name == null ? '' : c.name;
+      $('phone').value = c.phone == null ? '' : c.phone;
+      $('address').value = c.address == null ? '' : c.address;
+      $('plan').value = c.plan == null ? '' : c.plan;
+      $('price').value = c.price == null ? '' : c.price;
+    }
+
+    function resetFormState() {
+      editingId = null;
+      recordForm.reset();
+      setFormMode('create');
+    }
+
+    function startCreate() {
+      resetFormState();
+      hideError();
+      showEntryMode();
+      setTimeout(() => $('name').focus(), 80);
+    }
+
+    function startEdit(c) {
+      editingId = c.id;
+      fillForm(c);
+      setFormMode('edit');
+      hideError();
+      showEntryMode();
+      setTimeout(() => $('name').focus(), 80);
+    }
+
+    // 写操作统一走这里：本次会话已通过口令则直接执行，否则先弹口令
+    function requestWrite(action) {
+      if (sessionUnlocked) {
+        action();
+        return;
+      }
+      pendingAction = action;
+      openPassModal();
+    }
+
     /* ---------------- 口令弹窗 ---------------- */
     function openPassModal() {
       passModal.classList.remove('hidden');
@@ -405,12 +519,15 @@
     function closePassModal() {
       passModal.classList.add('hidden');
       passModal.classList.remove('flex');
+      pendingAction = null;
     }
 
     function confirmPass() {
       if (passInput.value.trim() === PASSWORD) {
+        const action = pendingAction;
+        sessionUnlocked = true;
         closePassModal();
-        showEntryMode();
+        if (action) action();
         return;
       }
       passError.classList.remove('hidden');
@@ -422,7 +539,22 @@
     }
 
     /* ---------------- 事件绑定 ---------------- */
-    lockBtn.addEventListener('click', openPassModal);
+    lockBtn.addEventListener('click', () => requestWrite(startCreate));
+
+    // 列表事件委托：卡片上的「编辑」按钮
+    clientList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-edit-id]');
+      if (!btn) return;
+
+      const id = btn.getAttribute('data-edit-id');
+      const record = customerCache.find((c) => String(c.id) === id);
+      if (!record) {
+        showError('没有找到这条记录，请刷新页面后重试。');
+        return;
+      }
+      requestWrite(() => startEdit(record));
+    });
+
     $('passCancel').addEventListener('click', closePassModal);
     $('passConfirm').addEventListener('click', confirmPass);
     passInput.addEventListener('keydown', (e) => {
@@ -433,13 +565,16 @@
       if (e.target === passModal) closePassModal();
     });
 
-    exitBtn.addEventListener('click', showViewMode);
+    exitBtn.addEventListener('click', () => {
+      resetFormState();
+      showViewMode();
+    });
     $('errorClose').addEventListener('click', hideError);
 
-    /* ---------------- 保存记录 ---------------- */
+    /* ---------------- 保存 / 更新记录 ---------------- */
     function setSaving(saving) {
       saveBtn.disabled = saving;
-      saveBtn.textContent = saving ? '保存中…' : '保存记录';
+      saveBtn.textContent = saving ? '保存中…' : (editingId ? '保存修改' : '保存记录');
     }
 
     recordForm.addEventListener('submit', async (e) => {
@@ -472,18 +607,27 @@
         price: price
       };
 
+      const isEditing = editingId !== null && editingId !== undefined;
+
       setSaving(true);
       try {
-        const { error } = await db.from(TABLE).insert([payload]);
-        if (error) throw error;
+        const { data, error } = isEditing
+          ? await db.from(TABLE).update(payload).eq('id', editingId).select('id')
+          : await db.from(TABLE).insert([payload]);
 
-        recordForm.reset();
+        if (error) throw error;
+        // update 被 RLS 拦下时 PostgREST 可能只返回空数组而不报错，这里显式提示
+        if (isEditing && (!data || !data.length)) {
+          throw new Error('没有更新到任何记录，可能被数据库权限（RLS）拒绝');
+        }
+
+        resetFormState();
         hideError();
-        showToast('保存成功');
+        showToast(isEditing ? '修改成功' : '保存成功');
         showViewMode();
         await loadCustomers();
       } catch (err) {
-        showError('保存失败：' + errorMessage(err) + '（请检查网络、表结构与 RLS 策略）');
+        showError((isEditing ? '保存修改失败：' : '保存失败：') + errorMessage(err) + '（请检查网络、表结构与 RLS 策略）');
       } finally {
         setSaving(false);
       }
